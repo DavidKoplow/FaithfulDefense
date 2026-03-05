@@ -23,7 +23,7 @@ with open("datasets/base_rules.json") as f:
     base_rules = json.load(f)
 base_rules = base_rules[dname]
 
-seed = 0 
+seed = 42
 know_training=False
 max_iter = 2000
 init_iter = 0 # default 0, iwal 50

@@ -50,6 +50,8 @@ def plot_supp(dname, max_iter, know_training, query_method, max_len, Nlevels, mo
         if not os.path.exists(filepath):
             print("Skipping missing result:", filepath)
             continue
+        else:
+            print("Plotting result:", filepath,"==========================================")
 
         surrogate = SurrogateModel(filepath)
         print(len(surrogate.colnames))
@@ -175,7 +177,7 @@ def plot_compare_onefold(dname, max_iter, know_training, query_method, max_len, 
 
 dname = "german_credit"
 
-seed = 0 # 0, 42, 237, 1222, 1757
+seed = 42 # 0, 42, 237, 1222, 1757
 know_training=False
 max_iter = 2000
 max_len = 3
@@ -183,7 +185,7 @@ Nlevels = 10
 model_class = "none" # cart, rf, gbdt, used for iwal, otherwise "none"
 
 query_method = "random"
-seed = 0
+seed = 42
 
 
 plot_supp(dname, max_iter, know_training, query_method, max_len, Nlevels, model_class, seed, metric="train")

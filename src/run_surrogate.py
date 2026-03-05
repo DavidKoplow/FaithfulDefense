@@ -18,7 +18,7 @@ X_test = test.iloc[:,:-1]
 y_test = test.iloc[:,-1].values
 
 
-seed = 0 
+seed = 42
 know_training=False
 max_iter = 2000
 max_len = 3
