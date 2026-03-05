@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 import time
+import os
 from utils import *
 from encoder import *
 from faithfuldefense import *
@@ -45,6 +46,7 @@ for exp_method in ["none", "base", "random_all_budget", "maximum_coverage_greedy
             }  
 
     outfile = "surrogate_results/surrogate_model_{}.p".format(file)
+    os.makedirs(os.path.dirname(outfile), exist_ok=True)
 
     with open(outfile, "wb") as out:
         pickle.dump(results, out, protocol=pickle.DEFAULT_PROTOCOL)

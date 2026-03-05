@@ -3,6 +3,7 @@ import pandas as pd
 from matplotlib import pyplot as plt
 from matplotlib.collections import LineCollection
 import time
+import os
 from utils import *
 from encoder import *
 from faithfuldefense import *
@@ -28,8 +29,15 @@ labels = {"none": "Baseline no exp",
         "lime": "Baseline lime"
         }
 
+
+def ensure_parent_dir(filepath):
+    directory = os.path.dirname(filepath)
+    if directory:
+        os.makedirs(directory, exist_ok=True)
+
 def plot_supp(dname, max_iter, know_training, query_method, max_len, Nlevels, model_class, seed, metric="test"):
     plt.figure(figsize=(6,6))
+    plotted = False
     for exp_method in ["none", "base","random_all_budget",  
                     "maximum_coverage_mip", 
                     "maximum_coverage_mip_all_budget",
@@ -39,6 +47,9 @@ def plot_supp(dname, max_iter, know_training, query_method, max_len, Nlevels, mo
         if query_method == "perturb" and exp_method == "none":
             filepath = "results/{}_{}_{}_query_random_exp_{}_{}_{}_{}_{}.p".format(dname, max_iter, know_training, exp_method, max_len, Nlevels, model_class, seed)
             
+        if not os.path.exists(filepath):
+            print("Skipping missing result:", filepath)
+            continue
 
         surrogate = SurrogateModel(filepath)
         print(len(surrogate.colnames))
@@ -60,19 +71,27 @@ def plot_supp(dname, max_iter, know_training, query_method, max_len, Nlevels, mo
         plt.plot(np.arange(surrogate.queries.shape[0]), 
                 exp_supp_count/pred_y.sum(),
                 label=label, color=palette_exp[exp_method], alpha=0.8)
+        plotted = True
         plt.xlabel("# queries", fontsize=16)
         plt.ylabel("% positive samples \ncovered by explanations", fontsize=16)
         plt.title("{} ({})\n support coverage".format(dname, metric), fontsize=20)
+    if not plotted:
+        print("No result files available for support plot:", query_method, metric)
+        plt.close()
+        return
     plt.legend(fontsize=18, loc='upper center', ncol=2, bbox_to_anchor=(0.5, -0.2))
     plt.tight_layout()
     
-    plt.savefig("figures/supp_query_{}_{}_{}_{}_{}.png".format(query_method, max_len, Nlevels, seed, metric), dpi=200, bbox_inches='tight')
+    outfile = "figures/supp_query_{}_{}_{}_{}_{}.png".format(query_method, max_len, Nlevels, seed, metric)
+    ensure_parent_dir(outfile)
+    plt.savefig(outfile, dpi=200, bbox_inches='tight')
 
 
 
 def plot_exp_time(dname, max_iter, know_training, max_len, Nlevels, seed):
     plt.figure(figsize=(16.5,3.2))
     exp_times = []
+    available_labels = []
     for query_method in ["random", "iwal", "perturb"]:
         for exp_method in ["base", "random_all_budget", "maximum_coverage_greedy_all_budget", "maximum_coverage_mip", "maximum_coverage_mip_all_budget"]:
             if query_method != "iwal":
@@ -80,26 +99,33 @@ def plot_exp_time(dname, max_iter, know_training, max_len, Nlevels, seed):
             else:
                 file = "{}_{}_{}_query_{}_exp_{}_{}_{}_cart_{}".format(dname, max_iter, know_training, query_method, exp_method, max_len, Nlevels, seed)
             filepath = "results/{}.p".format(file)
+            if not os.path.exists(filepath):
+                print("Skipping missing result:", filepath)
+                continue
             if exp_method != "lime":
                 surrogate = SurrogateModel(filepath)
             exp_times.append(surrogate.exp_time)
-    exp_labels = [labels["base"],  labels["random_all_budget"], 
-                  labels["maximum_coverage_greedy_all_budget"], 
-                  labels["maximum_coverage_mip"],
-                  labels["maximum_coverage_mip_all_budget"]]
-    plt.boxplot(exp_times, labels=3*exp_labels)
+            available_labels.append("{}: {}".format(query_method, labels[exp_method]))
+    if not exp_times:
+        print("No result files available for explanation time plot")
+        plt.close()
+        return
+    plt.boxplot(exp_times, tick_labels=available_labels)
     plt.xlabel("explanation method", fontsize=15)
     plt.title("{}: explanation time".format(dname), fontsize=18)
     plt.yscale('log')
     plt.ylabel("time", fontsize=15)
-    plt.xticks(np.arange(1,3*len(exp_labels)+1), 3*exp_labels, fontsize=13, rotation=45)
-    plt.savefig("figures/{}_{}_{}_exp_time_{}.png".format(dname, max_len, Nlevels, seed), dpi=200, bbox_inches='tight')
+    plt.xticks(np.arange(1, len(available_labels)+1), available_labels, fontsize=13, rotation=45)
+    outfile = "figures/{}_{}_{}_exp_time_{}.png".format(dname, max_len, Nlevels, seed)
+    ensure_parent_dir(outfile)
+    plt.savefig(outfile, dpi=200, bbox_inches='tight')
 
 
 
 
 def plot_compare_onefold(dname, max_iter, know_training, query_method, max_len, Nlevels, seed, model_class, surr_model_class="cart", metric="acc"):
     plt.figure(figsize=(6,6))
+    plotted = False
     for exp_method in ["none", "base", "random_all_budget", 
                         "maximum_coverage_mip", 
                         "maximum_coverage_mip_all_budget",
@@ -117,6 +143,9 @@ def plot_compare_onefold(dname, max_iter, know_training, query_method, max_len, 
             surrfile = "surrogate_results/surrogate_model_{}_{}_{}_query_{}_exp_{}_{}_{}_none_{}.p".format(dname, max_iter, know_training, "random", "none", max_len, Nlevels, seed)
         else:
             surrfile = "surrogate_results/surrogate_model_{}.p".format(file)
+        if not os.path.exists(surrfile):
+            print("Skipping missing surrogate result:", surrfile)
+            continue
         with open(surrfile, "rb") as f:
             surrout = pickle.load(f)
             
@@ -125,13 +154,20 @@ def plot_compare_onefold(dname, max_iter, know_training, query_method, max_len, 
                     marker=".",
                     label=label, 
                     color=palette_exp[exp_method], alpha=0.95)
+        plotted = True
                
         plt.xlabel("# queries", fontsize=16)
         plt.ylabel("attacker's error rate ({})".format(surr_model_class), fontsize=16)
         plt.title("{} \ntest performance".format(dname), fontsize=20)
+    if not plotted:
+        print("No surrogate result files available for comparison plot:", query_method, surr_model_class)
+        plt.close()
+        return
     plt.legend(fontsize=18, loc='upper center', ncol=2, bbox_to_anchor=(0.5, -0.01))
     plt.tight_layout()
-    plt.savefig("figures/surrogate_test_{}_{}_query_{}_{}_{}_compare_{}.png".format(surr_model_class, metric, query_method, max_len, Nlevels, seed), dpi=200, bbox_inches='tight')  
+    outfile = "figures/surrogate_test_{}_{}_query_{}_{}_{}_compare_{}.png".format(surr_model_class, metric, query_method, max_len, Nlevels, seed)
+    ensure_parent_dir(outfile)
+    plt.savefig(outfile, dpi=200, bbox_inches='tight')  
 
 
 
@@ -146,7 +182,7 @@ max_len = 3
 Nlevels = 10
 model_class = "none" # cart, rf, gbdt, used for iwal, otherwise "none"
 
-query_method = "perturb"
+query_method = "random"
 seed = 0
 
 

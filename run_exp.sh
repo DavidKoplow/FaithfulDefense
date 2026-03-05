@@ -1,3 +1,4 @@
 #!/bin/bash
 
-python3 src/run_experiments.py
+pip install -r requirements.txt
+python src/run_experiments.py
